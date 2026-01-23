@@ -20,7 +20,7 @@ const config: runtime.GetPrismaClientConfig = {
   "clientVersion": "7.3.0",
   "engineVersion": "9d6ad21cbbceab97458517b147a6a09ff43aa735",
   "activeProvider": "postgresql",
-  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\n// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?\n// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init\n\ngenerator client {\n  provider = \"prisma-client\"\n  output   = \"../src/generated/prisma\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n}\n\nenum Role {\n  CUSTOMER\n  SHOP_OWNER\n  SERVICE_CENTER\n}\n\nmodel User {\n  id        String   @id @default(cuid())\n  name      String\n  email     String   @unique\n  password  String\n  createdAt DateTime @default(now())\n  role      Role     @default(CUSTOMER)\n}\n",
+  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\n// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?\n// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init\n\ngenerator client {\n  provider = \"prisma-client\"\n  output   = \"../src/generated/prisma\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n}\n\nenum Role {\n  CUSTOMER\n  SHOP_OWNER\n  SERVICE_CENTER\n}\n\nenum TicketStatus {\n  PENDING\n  APPROVED\n  IN_REPAIR\n  REJECTED\n  COMPLETED\n}\n\nmodel User {\n  id       String @id @default(cuid())\n  name     String\n  email    String @unique\n  password String\n  role     Role   @default(CUSTOMER)\n\n  purchases    SoldItem[] // Items owned by this user\n  tickets      Ticket[] // Tickets created by this user\n  managedSales SoldItem[] @relation(\"SoldBy\") // Sales made by this shop owner\n  // managedTickets Ticket[]   <-- Removed: Technicians work on tickets, they don't \"own\" them via the sales relation.\n}\n\n// 1. PRODUCT IS NOW GENERIC (The \"Menu Item\")\nmodel Product {\n  id             String @id @default(cuid())\n  name           String // \"Asus TUF A15\"\n  modelNumber    String // \"FA506IC\"\n  imgUrl         String\n  warrantyMonths Int    @default(12) // Store warranty duration here!\n\n  items SoldItem[]\n}\n\n// 2. NEW MODEL: THE PHYSICAL ITEM (The \"Plate of Food\")\nmodel SoldItem {\n  id           String   @id @default(cuid())\n  serialNumber String   @unique // The unique ID on the box\n  purchaseDate DateTime @default(now())\n\n  // Who owns it?\n  ownerId String\n  owner   User   @relation(fields: [ownerId], references: [id])\n\n  // What model is it?\n  productId String\n  product   Product @relation(fields: [productId], references: [id])\n\n  // Who sold it?\n  soldById String\n  soldBy   User   @relation(\"SoldBy\", fields: [soldById], references: [id])\n\n  tickets Ticket[]\n}\n\nmodel Ticket {\n  id          String       @id @default(cuid())\n  reason      String\n  description String? // Renamed 'problem' to description for clarity\n  status      TicketStatus @default(PENDING) // Use ENUM\n  createdAt   DateTime     @default(now())\n  updatedAt   DateTime     @updatedAt // Track when status changes\n\n  // Link to the specific physical item, not the generic product\n  itemId String\n  item   SoldItem @relation(fields: [itemId], references: [id])\n\n  // Who raised it?\n  userId String\n  user   User   @relation(fields: [userId], references: [id])\n}\n",
   "runtimeDataModel": {
     "models": {},
     "enums": {},
@@ -28,7 +28,7 @@ const config: runtime.GetPrismaClientConfig = {
   }
 }
 
-config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"email\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"password\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"role\",\"kind\":\"enum\",\"type\":\"Role\"}],\"dbName\":null}},\"enums\":{},\"types\":{}}")
+config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"email\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"password\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"role\",\"kind\":\"enum\",\"type\":\"Role\"},{\"name\":\"purchases\",\"kind\":\"object\",\"type\":\"SoldItem\",\"relationName\":\"SoldItemToUser\"},{\"name\":\"tickets\",\"kind\":\"object\",\"type\":\"Ticket\",\"relationName\":\"TicketToUser\"},{\"name\":\"managedSales\",\"kind\":\"object\",\"type\":\"SoldItem\",\"relationName\":\"SoldBy\"}],\"dbName\":null},\"Product\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"modelNumber\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"imgUrl\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"warrantyMonths\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"items\",\"kind\":\"object\",\"type\":\"SoldItem\",\"relationName\":\"ProductToSoldItem\"}],\"dbName\":null},\"SoldItem\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"serialNumber\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"purchaseDate\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"ownerId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"owner\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"SoldItemToUser\"},{\"name\":\"productId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"product\",\"kind\":\"object\",\"type\":\"Product\",\"relationName\":\"ProductToSoldItem\"},{\"name\":\"soldById\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"soldBy\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"SoldBy\"},{\"name\":\"tickets\",\"kind\":\"object\",\"type\":\"Ticket\",\"relationName\":\"SoldItemToTicket\"}],\"dbName\":null},\"Ticket\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"reason\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"description\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"status\",\"kind\":\"enum\",\"type\":\"TicketStatus\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"itemId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"item\",\"kind\":\"object\",\"type\":\"SoldItem\",\"relationName\":\"SoldItemToTicket\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"TicketToUser\"}],\"dbName\":null}},\"enums\":{},\"types\":{}}")
 
 async function decodeBase64AsWasm(wasmBase64: string): Promise<WebAssembly.Module> {
   const { Buffer } = await import('node:buffer')
@@ -185,6 +185,36 @@ export interface PrismaClient<
     * ```
     */
   get user(): Prisma.UserDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.product`: Exposes CRUD operations for the **Product** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Products
+    * const products = await prisma.product.findMany()
+    * ```
+    */
+  get product(): Prisma.ProductDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.soldItem`: Exposes CRUD operations for the **SoldItem** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more SoldItems
+    * const soldItems = await prisma.soldItem.findMany()
+    * ```
+    */
+  get soldItem(): Prisma.SoldItemDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.ticket`: Exposes CRUD operations for the **Ticket** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Tickets
+    * const tickets = await prisma.ticket.findMany()
+    * ```
+    */
+  get ticket(): Prisma.TicketDelegate<ExtArgs, { omit: OmitOpts }>;
 }
 
 export function getPrismaClientClass(): PrismaClientConstructor {

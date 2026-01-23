@@ -19,11 +19,73 @@ enum Role {
   SERVICE_CENTER
 }
 
+enum TicketStatus {
+  PENDING
+  APPROVED
+  IN_REPAIR
+  REJECTED
+  COMPLETED
+}
+
 model User {
   id        String   @id @default(cuid())
   name      String
   email     String   @unique
   password  String
-  createdAt DateTime @default(now())
   role      Role     @default(CUSTOMER)
+
+  purchases    SoldItem[]      // Items owned by this user
+  tickets      Ticket[]        // Tickets created by this user
+  managedSales SoldItem[]      @relation("SoldBy") // Sales made by this shop owner
+  // managedTickets Ticket[]   <-- Removed: Technicians work on tickets, they don't "own" them via the sales relation.
+}
+
+// 1. PRODUCT IS NOW GENERIC (The "Menu Item")
+model Product {
+  id          String   @id @default(cuid())
+  name        String   // "Asus TUF A15"
+  modelNumber String   // "FA506IC"
+  imgUrl      String
+  warrantyMonths Int   @default(12) // Store warranty duration here!
+
+  items       SoldItem[] 
+}
+
+// 2. NEW MODEL: THE PHYSICAL ITEM (The "Plate of Food")
+model SoldItem {
+  id            String   @id @default(cuid())
+  serialNumber  String   @unique // The unique ID on the box
+  purchaseDate  DateTime @default(now())
+
+  // Who owns it?
+  ownerId       String
+  owner         User     @relation(fields: [ownerId], references: [id])
+
+  // What model is it?
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id])
+
+  // Who sold it?
+  soldById      String
+  soldBy        User     @relation("SoldBy", fields: [soldById], references: [id])
+
+  tickets       Ticket[]
+}
+
+model Ticket {
+  id        String       @id @default(cuid())
+  reason    String
+  description String?    // Renamed 'problem' to description for clarity
+  status    TicketStatus @default(PENDING) // Use ENUM
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt      // Track when status changes
+
+  // Link to the specific physical item, not the generic product
+  itemId    String
+  item      SoldItem     @relation(fields: [itemId], references: [id])
+
+  // Who raised it?
+  userId    String
+  user      User         @relation(fields: [userId], references: [id])
+
 }
